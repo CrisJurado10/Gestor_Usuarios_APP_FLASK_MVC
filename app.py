@@ -23,8 +23,8 @@ app.secret_key = 'tu_clave_secreta'
 mysql = MySQL(app)
 
 # Configuración de la duración de la sesión
-# Configuración de la duración de la sesión (20 segundos)
-app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(seconds=10)
+# Configuración de la duración de la sesión 
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(seconds=15)
 
 
 # Decorador para verificar si el usuario está autenticado
