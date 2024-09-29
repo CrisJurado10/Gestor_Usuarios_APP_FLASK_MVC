@@ -1,8 +1,16 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session
 from flask_mysqldb import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
-from controllers.usuario_controller import crear_usuario, obtener_usuarios, obtener_usuario, actualizar_usuario, eliminar_usuario
+from functools import wraps
+import datetime
 
+from controllers.usuario_controller import (
+    crear_usuario, 
+    obtener_usuarios, 
+    obtener_usuario, 
+    actualizar_usuario, 
+    eliminar_usuario
+)
 app = Flask(__name__)
 
 # Configuración de la base de datos
@@ -10,11 +18,23 @@ app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'  # Usuario de MYSQL
 app.config['MYSQL_PASSWORD'] = 'root'  # Contraseña de MYSQL
 app.config['MYSQL_DB'] = 'Crud_Usuarios'
-app.secret_key = 'tu_clave_secreta'  # Cambia esto por una clave más segura
+app.secret_key = 'tu_clave_secreta'  
 
 mysql = MySQL(app)
 
+# Configuración de la duración de la sesión
+# Configuración de la duración de la sesión (20 segundos)
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(seconds=10)
 
+
+# Decorador para verificar si el usuario está autenticado
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'usuario' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/')
 def index():
@@ -35,6 +55,7 @@ def login():
 
         if user and check_password_hash(user[3], contraseña):
             session['usuario'] = usuario
+            session.permanent = False  # La sesión no es permanente
             return redirect(url_for('pagina_principal'))
         else:
             return render_template('login.html', error="Usuario o contraseña incorrectos.")
@@ -42,28 +63,32 @@ def login():
     return render_template('login.html')
 
 @app.route('/pagina_principal')
+@login_required
 def pagina_principal():
-    if 'usuario' not in session:
-        return redirect(url_for('index'))
     return render_template('index.html', usuario=session['usuario'])
 
 @app.route('/usuarios', methods=['GET'])
+@login_required
 def usuarios():
     return obtener_usuarios(mysql)
 
 @app.route('/usuarios', methods=['POST'])
+@login_required
 def crear():
     return crear_usuario(mysql)
 
 @app.route('/usuarios/<int:indice>', methods=['GET'])
+@login_required
 def obtener_indice(indice):
     return obtener_usuario(indice, mysql)
 
 @app.route('/usuarios/<int:indice>', methods=['PUT'])
+@login_required
 def actualizar(indice):
     return actualizar_usuario(indice, mysql)
 
 @app.route('/usuarios/<int:indice>', methods=['DELETE'])
+@login_required
 def eliminar(indice):
     return eliminar_usuario(indice, mysql)
 
@@ -71,25 +96,6 @@ def eliminar(indice):
 def logout():
     session.pop('usuario', None)
     return redirect(url_for('login'))
-
-##Visualizar con contraseña en texto plano
-@app.route('/visualizar', methods=['POST'])
-def visualizar():
-    data = request.get_json()
-    id_usuario = data.get('id')
-    contraseña_ingresada = data.get('contraseña')
-
-    cursor = mysql.connection.cursor()
-    cursor.execute("SELECT * FROM usuarios WHERE id = %s", (id_usuario,))
-    usuario = cursor.fetchone()
-    cursor.close()
-
-    # Comparar la contraseña directamente sin hashearla
-    if usuario and usuario[3] == contraseña_ingresada:  # Comparación directa
-        return jsonify({'id': usuario[0], 'usuario': usuario[1], 'correo': usuario[2]}), 200
-    else:
-        return jsonify({"error": "Contraseña incorrecta"}), 401
-
 
 if __name__ == '__main__':
     app.run(debug=True)
