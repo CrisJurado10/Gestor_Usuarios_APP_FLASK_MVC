@@ -1,7 +1,34 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import jsonify, request
 
+def validar_contraseña_usuario(indice, mysql):
+    data = request.get_json()
+    contraseña_ingresada = data.get('contraseña')
 
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT * FROM usuarios WHERE id = %s", (indice,))
+    usuario = cursor.fetchone()
+    cursor.close()
+
+    if usuario and check_password_hash(usuario[3], contraseña_ingresada):  # Comparar contraseña hasheada
+        return jsonify({"message": "Contraseña correcta"}), 200
+    else:
+        return jsonify({"error": "Contraseña incorrecta"}), 401
+
+
+
+def verificar_contraseña(indice, mysql):
+    data = request.get_json()
+    contraseña_ingresada = data.get('contraseña')
+
+    cursor = mysql.connection.cursor()
+    cursor.execute("SELECT * FROM usuarios WHERE id = %s", (indice,))
+    usuario = cursor.fetchone()
+    cursor.close()
+
+    if usuario and check_password_hash(usuario[3], contraseña_ingresada):  # Comparar contraseña hasheada
+        return jsonify({'id': usuario[0], 'usuario': usuario[1], 'correo': usuario[2], 'contraseña': usuario[3]}), 200
+    return jsonify({"error": "Contraseña incorrecta"}), 401
 
 def mostrar_datos_usuario(indice, mysql):
     cursor = mysql.connection.cursor()
